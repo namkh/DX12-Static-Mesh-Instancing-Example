@@ -144,6 +144,7 @@ void StaticMeshInstancingExample::Destroy()
 	gGeomContainer.Clear();
 	gMaterialContainer.Clear();
 	gTexContainer.Clear();
+	gCmdAllocMgr.Destory();
 }
 
 void StaticMeshInstancingExample::OnKeyboardEvent(KeyboardEvent* keyEvent)

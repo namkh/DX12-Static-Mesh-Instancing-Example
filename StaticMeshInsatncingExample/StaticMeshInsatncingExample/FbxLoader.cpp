@@ -237,7 +237,7 @@ void SimpleFbxGeometiesLoader::ReadColor(FbxMesh* inMesh, int inCtrlPointIndex, 
 	}
 }
 
-void SimpleFbxGeometiesLoader::Load(std::string filePath, std::vector<FbxGeometryData>& fbxGeometryDatas, bool regenNormalAndTangent)
+void SimpleFbxGeometiesLoader::LoadGeometry(std::string filePath, std::vector<FbxGeometryData>& fbxGeometryDatas, bool regenNormalAndTangent)
 {
 	fbxsdk::FbxScene* fbxScene = FbxScene::Create(m_fbxManager, "LoadScene");
 

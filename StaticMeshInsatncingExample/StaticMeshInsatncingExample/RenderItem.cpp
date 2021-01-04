@@ -483,7 +483,7 @@ bool RenderItem_MeshShaderInstancing::CreateRootSignature()
 	slotRootParameterList.push_back(globalConstantSlotRootParameter);
 
 	CD3DX12_ROOT_PARAMETER drawParamSlotRootParameter = {};
-	drawParamSlotRootParameter.InitAsConstants(4, 1, 0, D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL);
+	drawParamSlotRootParameter.InitAsConstants(5, 1, 0, D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL);
 	slotRootParameterList.push_back(drawParamSlotRootParameter);
 
 	CD3DX12_ROOT_PARAMETER vertexBufferSlotRootParameter = {};
@@ -650,9 +650,9 @@ bool RenderItem_MeshShaderInstancing::CreateCommandBuffer()
 								uint32_t meshletCount = mesh->GetMeshletInfo().MeshletCount;
 								uint32_t lastMeshletVertIndexCount = mesh->GetMeshletInfo().LastMeshletVertIdxCount;
 								uint32_t lastMeshletPrimCount = mesh->GetMeshletInfo().LastMeshletPrimCount;
-								cmdBuf->SetGraphicsRoot32BitConstant(1, meshletCount, 1);
-								cmdBuf->SetGraphicsRoot32BitConstant(1, lastMeshletVertIndexCount, 2);
-								cmdBuf->SetGraphicsRoot32BitConstant(1, lastMeshletPrimCount, 3);
+								cmdBuf->SetGraphicsRoot32BitConstant(1, meshletCount, 2);
+								cmdBuf->SetGraphicsRoot32BitConstant(1, lastMeshletVertIndexCount, 3);
+								cmdBuf->SetGraphicsRoot32BitConstant(1, lastMeshletPrimCount, 4);
 
 								cmdBuf->SetGraphicsRootShaderResourceView(2, mesh->GetVertexBuffer().GetResource()->GetGPUVirtualAddress());
 								cmdBuf->SetGraphicsRootShaderResourceView(3, mesh->GetMeshletBuffer().GetResource()->GetGPUVirtualAddress());
@@ -664,16 +664,18 @@ bool RenderItem_MeshShaderInstancing::CreateCommandBuffer()
 
 								float groupPerInstance = float(meshletCount - 1) + 1.0f / packCount;
 
-								uint32_t maxInstancePerBatch = static_cast<uint32_t>(float(MAX_GROUP_DISPATCH_COUNT) / groupPerInstance);
+								uint32_t maxInstancePerBatch = static_cast<uint32_t>(float(MAX_DISPATCH_GROUP_COUNT) / groupPerInstance);
 
 								uint32_t numInstances = m_renderObj->GetInstanceCount();
-								uint32_t dispatchCount = DivRoundUp(numInstances, MAX_GROUP_DISPATCH_COUNT);
+								uint32_t dispatchCount = DivRoundUp(numInstances, MAX_DISPATCH_GROUP_COUNT);
 								for (uint32_t k = 0; k < dispatchCount; ++k)
 								{
-									uint32_t offset = max(MAX_GROUP_DISPATCH_COUNT * k, 0);
-									uint32_t dispatchThreadCount = min(numInstances - offset, MAX_GROUP_DISPATCH_COUNT);
-									cmdBuf->SetGraphicsRoot32BitConstant(1, offset, 0);
-									cmdBuf->DispatchMesh(DivRoundUp(dispatchThreadCount, AS_GROUP_SIZE), 1, 1);
+									uint32_t numCurDispatchInstances = min(numInstances - MAX_DISPATCH_GROUP_COUNT * k, MAX_DISPATCH_GROUP_COUNT);
+									uint32_t offset = max(MAX_DISPATCH_GROUP_COUNT * k, 0);
+									uint32_t dispatchThreadCount = min(numInstances - offset, MAX_DISPATCH_GROUP_COUNT);
+									cmdBuf->SetGraphicsRoot32BitConstant(1, numCurDispatchInstances, 0);
+									cmdBuf->SetGraphicsRoot32BitConstant(1, offset, 1);
+									cmdBuf->DispatchMesh(DivRoundUp(dispatchThreadCount, MAX_INSTANCE_COUNT_PER_AS), 1, 1);
 								}
 							}
 						}

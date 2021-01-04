@@ -28,7 +28,7 @@ void CommandQueue::Submit(CommandBufferBase* cmdBuffer, Fence* fence, bool prese
 	m_commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 	
 	fence->AddSubmittedCommandBuffer(cmdBuffer);
-	fence->SetCurrentFenceIndex(m_fenceValue);
+	fence->SetCurrentFenceIndex(m_fenceValue++);
 	fence->NotifyWaitEnd.Bind(this, &CommandQueue::OnFenceWaitEnded);
 	m_waitingFences.insert(std::make_pair(fence->GetUID(), fence));
 	if (present)

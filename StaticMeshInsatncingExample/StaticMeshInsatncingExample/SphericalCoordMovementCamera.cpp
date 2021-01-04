@@ -9,6 +9,9 @@
 const float	SphericalCoordMovementCamera::DEFAULT_ROTATION_SENSITIVITY = 0.005f;
 const float	SphericalCoordMovementCamera::DEFAULT_ZOOM_SENSITIVITY = 0.2f;
 
+const float SphericalCoordMovementCamera::PHI_LIMIT = PI * 0.99999f;
+const float SphericalCoordMovementCamera::NEAR_LIMIT = 0.00001f;
+
 SphericalCoordMovementCamera::SphericalCoordMovementCamera()
 {
 	XMFLOAT3 lookAt = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -78,12 +81,14 @@ void SphericalCoordMovementCamera::OnMouseEvent(MouseEvent* mouseEvent)
 	{
 		m_seta += mouseEvent->m_dx * DEFAULT_ROTATION_SENSITIVITY * m_rotSensitivity;
 		m_phi += mouseEvent->m_dy * DEFAULT_ROTATION_SENSITIVITY * m_rotSensitivity;
+		m_phi = min(m_phi, PHI_LIMIT);
+		m_phi = max(m_phi, 0.000001f);
 		m_needUpdateViewMatrix = true;
 	}
 	if (mouseEvent->CheckMouseEvent(EMouseEvent::MOUSE_WHEEL_UP))
 	{
 		m_radaius -= DEFAULT_ZOOM_SENSITIVITY * m_zoomSensitivity;
-		m_radaius = max(m_radaius, 0.0f);
+		m_radaius = max(m_radaius, NEAR_LIMIT);
 		m_needUpdateViewMatrix = true;
 	}
 	if (mouseEvent->CheckMouseEvent(EMouseEvent::MOUSE_WHEEL_DOWN))

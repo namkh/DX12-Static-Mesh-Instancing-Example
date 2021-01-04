@@ -8,8 +8,11 @@ class SphericalCoordMovementCamera
 {
 private:
 
-	static const float	DEFAULT_ROTATION_SENSITIVITY;
-	static const float	DEFAULT_ZOOM_SENSITIVITY;
+	static const float DEFAULT_ROTATION_SENSITIVITY;
+	static const float DEFAULT_ZOOM_SENSITIVITY;
+
+	static const float PHI_LIMIT;
+	static const float NEAR_LIMIT;
 
 public:
 

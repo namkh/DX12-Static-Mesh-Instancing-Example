@@ -7,7 +7,7 @@
 #include "Singleton.h"
 
 static const uint32_t MESHLET_MAX_VERTS = 64;
-static const uint32_t MESHLET_MAX_PRIMS = 128;
+static const uint32_t MESHLET_MAX_PRIMS = 126;
 
 //전체 인덱스 바인딩
 

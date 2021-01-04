@@ -73,8 +73,10 @@ int Win32Application::Run(ExampleAppBase* pExample, HINSTANCE hInstance, int nCm
 	g_prevMousePosX = cursorPos.x;
 	g_prevMousePosY = cursorPos.y;
 
+	g_appWidth = pExample->GetWidth();
+	g_appHeight = pExample->GetHeight();
 	
-	if (!DX12DeviceResourceAccess::Instance().Initialize(hInstance, m_hwnd, pExample->GetWidth(), pExample->GetHeight()))
+	if (!DX12DeviceResourceAccess::Instance().Initialize(hInstance, m_hwnd, g_appWidth, g_appHeight))
 	{
 		REPORT_WITH_SHUTDOWN(EReportType::REPORT_TYPE_ERROR, "Device resource create failed.");
 	}
@@ -154,40 +156,46 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 	case WM_SIZE:
 		if (g_appStarted)
 		{
-			g_appWidth = LOWORD(lParam);
-			g_appHeight = HIWORD(lParam);
-			if (wParam == SIZE_MINIMIZED)
-			{
-				g_appPause = true;
-				g_appMinimized = true;
-				g_appMaximized = false;
-			}
-			else if (wParam == SIZE_MAXIMIZED)
-			{
-				if (!g_appMaximized)
-				{
-					ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
-					CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
+			uint32_t changedWidthSize = LOWORD(lParam);
+			uint32_t changedHeightSize = HIWORD(lParam);
 
-					g_appMinimized = false;
-					g_appMaximized = true;
-				}
-			}
-			else if (wParam == SIZE_RESTORED)
+			if (changedWidthSize != g_appWidth || changedHeightSize != g_appHeight)
 			{
-				if (g_appMinimized)
+				g_appWidth = changedWidthSize;
+				g_appHeight = changedHeightSize;
+				if (wParam == SIZE_MINIMIZED)
 				{
-					ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
-					CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
-					g_appPause = false;
-					g_appMinimized = false;
-				}
-				else if (g_appMaximized)
-				{
-					ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
-					CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
-					g_appPause = false;
+					g_appPause = true;
+					g_appMinimized = true;
 					g_appMaximized = false;
+				}
+				else if (wParam == SIZE_MAXIMIZED)
+				{
+					if (!g_appMaximized)
+					{
+						ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
+						CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
+
+						g_appMinimized = false;
+						g_appMaximized = true;
+					}
+				}
+				else if (wParam == SIZE_RESTORED)
+				{
+					if (g_appMinimized)
+					{
+						ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
+						CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
+						g_appPause = false;
+						g_appMinimized = false;
+					}
+					else if (g_appMaximized)
+					{
+						ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
+						CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
+						g_appPause = false;
+						g_appMaximized = false;
+					}
 				}
 			}
 		}
@@ -202,7 +210,6 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 	{
 		g_appPause = false;
 		g_appResizing = false;
-
 		ScreenSizeChangedEvent screenSizeChangedEvent(g_appWidth, g_appHeight);
 		CoreEventManager::Instance().ExecScreenSizeChangedEvent(&screenSizeChangedEvent);
 	}

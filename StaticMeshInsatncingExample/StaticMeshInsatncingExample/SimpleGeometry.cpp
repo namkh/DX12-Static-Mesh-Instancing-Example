@@ -254,7 +254,7 @@ std::vector<D3D12_INPUT_ELEMENT_DESC>* SimpleGeometry::GetDefaultInputLayout()
 bool SimpleGeometry::Load(CommandBufferBase* cmdBuffer, std::string& fbxFilePath, bool genMeshlet)
 {
 	std::vector<FbxGeometryData> geomDatas;
-	gFbxGeomLoader.Load(fbxFilePath, geomDatas);
+	gFbxGeomLoader.LoadGeometry(fbxFilePath, geomDatas);
 
 	for (auto& cur : geomDatas)
 	{

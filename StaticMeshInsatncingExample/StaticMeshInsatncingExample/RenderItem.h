@@ -152,6 +152,6 @@ private:
 	static const wchar_t* MESHSHADER_INSTANCING_MS_FILE_PATH;
 	static const wchar_t* MESHSHADER_INSTANCING_PS_FILE_PATH;
 
-	static const uint32_t MAX_GROUP_DISPATCH_COUNT = 65536;
-	static const uint32_t AS_GROUP_SIZE = 64;
+	static const uint32_t MAX_DISPATCH_GROUP_COUNT = 65536;
+	static const uint32_t MAX_INSTANCE_COUNT_PER_AS = 64;
 };

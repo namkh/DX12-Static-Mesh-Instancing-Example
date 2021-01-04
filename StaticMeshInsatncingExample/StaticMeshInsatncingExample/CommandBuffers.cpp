@@ -2,6 +2,83 @@
 #include "DX12DeviceResourceAccess.h"	
 #include "Fence.h"
 
+CommandAllocator::CommandAllocator() : UniqueIdentifier()
+{
+	HRESULT res = gLogicalDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_allocator));
+	if (FAILED(res))
+	{
+		REPORT(EReportType::REPORT_TYPE_ERROR, "Command allocator create failed.");
+	}
+	m_allocator->Reset();
+}
+
+CommandAllocator::~CommandAllocator()
+{
+	m_allocator->Release();
+}
+
+ID3D12CommandAllocator* CommandAllocator::GetAllocator()
+{
+	return m_allocator;
+}
+
+void CommandAllocator::Reset()
+{
+	m_allocator->Reset();
+}
+
+CommandAllocator* CommandAllocatorManager::GetCommandAllocator()
+{
+	int idleAllocatorIndex = -1;
+	if (m_idleAllocatorIndexQueue.size() > 0)
+	{
+		idleAllocatorIndex = m_idleAllocatorIndexQueue.front();
+		m_idleAllocatorIndexQueue.pop();
+	}
+
+	CommandAllocator* allocator = nullptr;
+	if (idleAllocatorIndex != -1)
+	{
+		if (idleAllocatorIndex < m_commandAllocatorList.size())
+		{
+			allocator = m_commandAllocatorList[idleAllocatorIndex];
+		}
+	}
+
+	if (allocator == nullptr)
+	{
+		allocator = new CommandAllocator();
+		m_commandAllocatorList.push_back(allocator);
+		uint32_t newAllocatorIndex = static_cast<uint32_t>(m_commandAllocatorList.size() - 1);
+		m_bindTable.insert(std::make_pair(allocator->GetUID(), newAllocatorIndex));
+	}
+
+	return allocator;
+}
+
+void CommandAllocatorManager::ReleaseCommandAllocator(CommandAllocator* allocator)
+{
+	auto iterFind = m_bindTable.find(allocator->GetUID());
+	if (iterFind != m_bindTable.end())
+	{
+		uint32_t index = iterFind->second;
+		m_commandAllocatorList[index]->Reset();
+		m_idleAllocatorIndexQueue.push(index);
+	}
+}
+
+void CommandAllocatorManager::Destory()
+{
+	for (auto& cur : m_commandAllocatorList)
+	{
+		if (cur != nullptr)
+		{
+			delete cur;
+			cur = nullptr;
+		}
+	}
+}
+
 void CommandBufferBase::FreeCommandBuffers()
 {
 	if (m_isInitialized)
@@ -10,15 +87,14 @@ void CommandBufferBase::FreeCommandBuffers()
 	}
 }
 
-bool CommandBufferBase::AllocateCommandBuffer(ID3D12CommandAllocator* cmdPool)
+bool CommandBufferBase::AllocateCommandBuffer()
 {
-	m_commandPool = cmdPool;
-
+	m_commandAllocator = CommandAllocatorManager::Instance().GetCommandAllocator();
 	HRESULT res = gLogicalDevice->CreateCommandList
 	(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		m_commandPool,
+		m_commandAllocator->GetAllocator(),
 		nullptr,
 		IID_PPV_ARGS(&m_commandBuffer)
 	);
@@ -27,24 +103,53 @@ bool CommandBufferBase::AllocateCommandBuffer(ID3D12CommandAllocator* cmdPool)
 	return SUCCEEDED(res);
 }
 
+void CommandBufferBase::Reset()
+{
+	if (m_commandAllocator != nullptr)
+	{
+		CommandAllocatorManager::Instance().ReleaseCommandAllocator(m_commandAllocator);
+		m_commandAllocator = nullptr;
+	}
+}
+
 bool CommandBufferBase::Begin()
 {
-	return SUCCEEDED(m_commandBuffer->Reset(m_commandPool, nullptr));
+	if (m_commandAllocator == nullptr)
+	{
+		m_commandAllocator = CommandAllocatorManager::Instance().GetCommandAllocator();
+	}
+	else
+	{
+		m_commandAllocator->Reset();
+	}
+	return SUCCEEDED(m_commandBuffer->Reset(m_commandAllocator->GetAllocator(), nullptr));
 }
 
 bool CommandBufferBase::Begin(ID3D12PipelineState* pso)
 {
-	return SUCCEEDED(m_commandBuffer->Reset(m_commandPool, pso));
+	if (m_commandAllocator == nullptr)
+	{
+		m_commandAllocator = CommandAllocatorManager::Instance().GetCommandAllocator();
+	}
+	else
+	{
+		m_commandAllocator->Reset();
+	}
+	return SUCCEEDED(m_commandBuffer->Reset(m_commandAllocator->GetAllocator(), pso));
 }
 
 bool CommandBufferBase::End()
 {
-	return SUCCEEDED(m_commandBuffer->Close());
+	if (SUCCEEDED(m_commandBuffer->Close()))
+	{
+		return true;
+	}
+	return false;
 }
 
-bool CommandBuffer::Initialize(ID3D12CommandAllocator* cmdPool)
+bool CommandBuffer::Initialize()
 {
-	if (AllocateCommandBuffer(cmdPool))
+	if (AllocateCommandBuffer())
 	{
 		m_isInitialized = true;
 		return true;
@@ -65,18 +170,10 @@ bool CommandBuffer::End()
 
 bool StaticCommandBufferContainer::Initialize(uint32_t allocCount)
 {
-	HRESULT res = gLogicalDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
-	if (FAILED(res))
-	{
-		REPORT(EReportType::REPORT_TYPE_ERROR, "Command allocator create failed.");
-		return false;
-	}
-	m_commandAllocator->SetName(L"Static Command Buffer Container Allocator");
-
 	m_commandList.resize(allocCount);
 	for (auto& cur : m_commandList)
 	{
-		cur.Initialize(m_commandAllocator);
+		cur.Initialize();
 	}
 
 	return true;
@@ -85,11 +182,6 @@ bool StaticCommandBufferContainer::Initialize(uint32_t allocCount)
 void StaticCommandBufferContainer::Destory()
 {
 	Clear();
-
-	if (m_commandAllocator != nullptr)
-	{
-		m_commandAllocator->Release();
-	}
 }
 
 CommandBuffer* StaticCommandBufferContainer::GetCommandBuffer(uint32_t index)
@@ -112,40 +204,29 @@ void StaticCommandBufferContainer::Clear()
 
 bool DynamicCommandBufferContainer::Initialize()
 {
-	HRESULT res = gLogicalDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
-	if (FAILED(res))
-	{
-		REPORT(EReportType::REPORT_TYPE_ERROR, "Command allocator create failed.");
-		return false;
-	}
-	m_commandAllocator->Reset();
-
 	return true;
 }
 
 void DynamicCommandBufferContainer::Destory()
 {
 	Clear();
-
-	if (m_commandAllocator != nullptr)
-	{
-		m_commandAllocator->Release();
-	}
 }
 
 CommandBuffer* DynamicCommandBufferContainer::GetCommandBuffer()
 {
 	for (int i = 0; i < m_commandList.size(); i++)
 	{
-		if (m_commandList[i].GetState() == CommandBuffer::ECommandBufferState::COMMAND_BUFFER_STATE_READY)
+		if (m_commandList[i]->GetState() == CommandBuffer::ECommandBufferState::COMMAND_BUFFER_STATE_READY)
 		{
-			return &m_commandList[i];
+			m_commandList[i]->Reset();
+			return m_commandList[i];
 		}
 	}
 
-	m_commandList.emplace_back();
-	m_commandList[m_commandList.size() - 1].Initialize(m_commandAllocator);
-	return &m_commandList[m_commandList.size() - 1];
+	CommandBuffer* newCmdBuf = new CommandBuffer();
+	m_commandList.push_back(newCmdBuf);
+	m_commandList[m_commandList.size() - 1]->Initialize();
+	return m_commandList[m_commandList.size() - 1];
 
 	return nullptr;
 }
@@ -154,9 +235,9 @@ CommandBuffer* DynamicCommandBufferContainer::GetCommandBuffer(uint32_t index)
 {
 	if (index < m_commandList.size())
 	{
-		if (m_commandList[index].GetState() == CommandBuffer::ECommandBufferState::COMMAND_BUFFER_STATE_READY)
+		if (m_commandList[index]->GetState() == CommandBuffer::ECommandBufferState::COMMAND_BUFFER_STATE_READY)
 		{
-			return &m_commandList[index];
+			return m_commandList[index];
 		}
 		else
 		{
@@ -170,23 +251,15 @@ void DynamicCommandBufferContainer::Clear()
 {
 	for (auto& cur : m_commandList)
 	{
-		cur.FreeCommandBuffers();
+		cur->FreeCommandBuffers();
+		delete cur;
 	}
 	m_commandList.clear();
 }
 
 bool SingleTimeCommandBuffer::Begin()
 {
-	HRESULT res = gLogicalDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
-	if (FAILED(res))
-	{
-		REPORT(EReportType::REPORT_TYPE_ERROR, "Command allocator create failed.");
-	}
-	m_commandAllocator->Reset();
-	m_commandAllocator->SetName(L"SingleTimeCmdAllocator");
-
-	m_commandPool = m_commandAllocator;
-	if (AllocateCommandBuffer(m_commandPool))
+	if (AllocateCommandBuffer())
 	{
 		if (CommandBufferBase::Begin())
 		{
@@ -209,18 +282,11 @@ bool SingleTimeCommandBuffer::Begin()
 
 bool SingleTimeCommandBuffer::Begin(ID3D12PipelineState* pso)
 {
-	HRESULT res = gLogicalDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
-	if (FAILED(res))
-	{
-		REPORT(EReportType::REPORT_TYPE_ERROR, "Command allocator create failed.");
-	}
-//	m_commandAllocator->Reset();
-
-	m_commandPool = m_commandAllocator;
-	if (AllocateCommandBuffer(m_commandPool))
+	if (AllocateCommandBuffer())
 	{
 		if (CommandBufferBase::Begin(pso))
 		{
+			m_commandBuffer->SetName(L"single time command buffer");
 			m_isInitialized = true;
 		}
 		else
@@ -246,11 +312,10 @@ bool SingleTimeCommandBuffer::End()
 		gDX12DeviceRes->GetDefaultCommandQueue().Submit(this, &m_fence, false);
 		m_fence.WaitForEnd();
 		m_fence.Destory();
-		
+
 		FreeCommandBuffers();
 
-		m_commandPool = nullptr;
-		m_commandAllocator->Release();
+		m_commandAllocator->Reset();
 	}
 	else
 	{

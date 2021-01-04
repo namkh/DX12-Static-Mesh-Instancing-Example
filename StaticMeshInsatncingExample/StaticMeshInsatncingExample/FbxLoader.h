@@ -36,7 +36,7 @@ protected:
 	void ReadColor(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT4& outColor);
 
 public:
-	void Load(std::string filePath, std::vector<FbxGeometryData>& fbxGeometryDatas, bool regenNormalAndTangent = false);
+	void LoadGeometry(std::string filePath, std::vector<FbxGeometryData>& fbxGeometryDatas, bool regenNormalAndTangent = false);
 
 private:
 

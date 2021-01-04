@@ -185,9 +185,12 @@ void SwapChain::Present()
 
 void SwapChain::OnScreenSizeChanged(uint32_t width, uint32_t height)
 {
-	m_screenSizeChanged = true;
-	m_width = width;
-	m_height = height;
+	if (m_width != width && m_height != height)
+	{
+		m_screenSizeChanged = true;
+		m_width = width;
+		m_height = height;
+	}
 }
 
 void SwapChain::Refresh()

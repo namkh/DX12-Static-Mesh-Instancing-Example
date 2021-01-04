@@ -1,9 +1,10 @@
 #define MAX_VERTS 64
 #define MAX_PRIMS 126
-#define AS_GROUP_SIZE 64
+#define INST_GROUP_SIZE 64
 
 struct DrawParam
 {
+    uint instanceCountPerDispatch;
     uint instanceOffset;
     uint meshletCount;
     uint lastMeshletVertCount;
@@ -91,10 +92,10 @@ uint DivRoundUp(uint num, uint denom)
     return (num + denom - 1) / denom;
 }
 
-[NumThreads(AS_GROUP_SIZE, 1, 1)]
+[NumThreads(1, 1, 1)]
 void AS(uint dtid : SV_DISPATCHTHREADID, uint gtid : SV_GROUPTHREADID, uint gid : SV_GROUPID)
 {
-    uint instanceCount = AS_GROUP_SIZE;
+    uint instanceCount = min(drawParam.instanceCountPerDispatch - (dtid * INST_GROUP_SIZE), INST_GROUP_SIZE);
     uint unpackedGroupCount = (drawParam.meshletCount - 1) * instanceCount;
     uint packCount = min(MAX_VERTS / drawParam.lastMeshletVertCount, MAX_PRIMS / drawParam.lastMeshletPrimCount);
     uint packedGroupCount = DivRoundUp(instanceCount, packCount);

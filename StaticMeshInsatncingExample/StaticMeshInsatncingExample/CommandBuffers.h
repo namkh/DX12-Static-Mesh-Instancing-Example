@@ -1,10 +1,46 @@
 #pragma once
 
 #include <vector>
+#include <queue>
 
 #include "Defaults.h"
 #include "Commands.h"
 #include "Fence.h"
+#include "Singleton.h"
+#include "Utils.h"
+
+class CommandAllocator : public UniqueIdentifier
+{
+public:
+	CommandAllocator();
+	~CommandAllocator();
+	ID3D12CommandAllocator* GetAllocator();
+	void Reset();
+
+private:
+	ID3D12CommandAllocator* m_allocator;
+};
+
+class CommandAllocatorManager : public TSingleton<CommandAllocatorManager>
+{
+public:
+	CommandAllocatorManager(token)
+	{
+
+	};
+
+public:
+	CommandAllocator* GetCommandAllocator();
+	void ReleaseCommandAllocator(CommandAllocator* allocator);
+	void Destory();
+
+public:
+	std::map<UID, uint32_t> m_bindTable;
+	std::vector<CommandAllocator*> m_commandAllocatorList;
+	std::queue<uint32_t> m_idleAllocatorIndexQueue;
+};
+
+#define gCmdAllocMgr CommandAllocatorManager::Instance()
 
 class CommandBufferBase
 {
@@ -12,9 +48,9 @@ public:
 	virtual ~CommandBufferBase() {}
 public:
 	void FreeCommandBuffers();
-
+	void Reset();
 protected:
-	bool AllocateCommandBuffer(ID3D12CommandAllocator* cmdPool);
+	bool AllocateCommandBuffer();
 	virtual bool Begin();
 	virtual bool Begin(ID3D12PipelineState* pso);
 	virtual bool End();
@@ -32,7 +68,7 @@ public:
 protected:
 
 	ID3D12GraphicsCommandList* m_commandBuffer;
-	ID3D12CommandAllocator* m_commandPool;
+	CommandAllocator* m_commandAllocator;
 	ID3D12CommandQueue* m_commandQueue;
 	bool m_isInitialized = false;
 };
@@ -49,7 +85,7 @@ public:
 		COMMAND_BUFFER_STATE_SUBMITTED,
 	};
 public:
-	bool Initialize(ID3D12CommandAllocator* cmdPool);
+	bool Initialize();
 	virtual bool Begin(ID3D12PipelineState* pso) override;
 	virtual bool End() override;
 
@@ -74,7 +110,6 @@ public:
 
 private:
 	std::vector<CommandBuffer> m_commandList;
-	ID3D12CommandAllocator*	m_commandAllocator;
 };
 
 class DynamicCommandBufferContainer
@@ -90,8 +125,7 @@ public:
 
 private:
 
-	std::vector<CommandBuffer> m_commandList;
-	ID3D12CommandAllocator*	m_commandAllocator;
+	std::vector<CommandBuffer*> m_commandList;
 };
 
 class SingleTimeCommandBuffer : public CommandBufferBase
@@ -105,5 +139,4 @@ public:
 
 private:
 	Fence m_fence = {};
-	ID3D12CommandAllocator*	m_commandAllocator;
 };
