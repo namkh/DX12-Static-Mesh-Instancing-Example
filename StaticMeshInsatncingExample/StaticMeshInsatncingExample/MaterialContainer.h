@@ -20,9 +20,6 @@ public:
 	uint32_t GetMaterialCount() { return static_cast<uint32_t>(m_materialDatas.size()); }
 	SimpleMaterial* GetMaterial(int index);
 
-protected:
-	void RefreshIndexTable();
-
 private:
 	std::map<ExampleMaterialType, UID> m_materialUidTable;
 	std::map<UID, SimpleMaterial*> m_materialDatas;

@@ -41,8 +41,6 @@ protected:
 	SimpleMeshData* LoadMesh(CommandBufferBase* cmdBuffer, FbxGeometryData& fbxGeomData, bool genMeshlet = false);
 	void UnloadMesh(SimpleMeshData* geomData);
 
-	void RefreshIndexTable();
-
 public:
 
 	LambdaCommandListWithOneParam<std::function<void(uint32_t)>, uint32_t> OnMeshLoaded;
