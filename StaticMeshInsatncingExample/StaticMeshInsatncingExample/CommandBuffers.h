@@ -67,9 +67,9 @@ public:
 
 protected:
 
-	ID3D12GraphicsCommandList* m_commandBuffer;
-	CommandAllocator* m_commandAllocator;
-	ID3D12CommandQueue* m_commandQueue;
+	ID3D12GraphicsCommandList* m_commandBuffer = nullptr;
+	CommandAllocator* m_commandAllocator = nullptr;
+	ID3D12CommandQueue* m_commandQueue = nullptr;
 	bool m_isInitialized = false;
 };
 

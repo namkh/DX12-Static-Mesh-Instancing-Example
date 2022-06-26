@@ -16,11 +16,13 @@ bool ReadOnlyDeviceBuffer::Initialize(uint32_t count, uint32_t stride)
 	m_stride = stride;
 	m_byteSize = m_count * m_stride;
 
+	CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(m_stride * count);
 	HRESULT res = gLogicalDevice->CreateCommittedResource
 	(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(m_stride * count),
+		&resDesc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(&m_resourceBuffer)
@@ -31,11 +33,12 @@ bool ReadOnlyDeviceBuffer::Initialize(uint32_t count, uint32_t stride)
 		return false;
 	}
 
+	heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	res = gLogicalDevice->CreateCommittedResource
 	(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(m_stride * count),
+		&resDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&m_stagingBuffer)
@@ -64,29 +67,13 @@ void ReadOnlyDeviceBuffer::UploadResource(CommandBufferBase* cmdBuffer, void* da
 			std::memcpy(memory, data, m_byteSize);
 			m_stagingBuffer->Unmap(0, nullptr);
 
-			cmdBuffer->GetCommandBuffer()->ResourceBarrier
-			(
-				1,
-				&CD3DX12_RESOURCE_BARRIER::Transition
-				(
-					m_resourceBuffer,
-					D3D12_RESOURCE_STATE_COMMON,
-					D3D12_RESOURCE_STATE_COPY_DEST
-				)
-			);
+			CD3DX12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_resourceBuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+			cmdBuffer->GetCommandBuffer()->ResourceBarrier(1, &resBarrier);
 
 			cmdBuffer->GetCommandBuffer()->CopyResource(m_resourceBuffer, m_stagingBuffer);
 
-			cmdBuffer->GetCommandBuffer()->ResourceBarrier
-			(
-				1,
-				&CD3DX12_RESOURCE_BARRIER::Transition
-				(
-					m_resourceBuffer,
-					D3D12_RESOURCE_STATE_COPY_DEST,
-					m_resourceState
-				)
-			);
+			resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_resourceBuffer, D3D12_RESOURCE_STATE_COPY_DEST, m_resourceState);
+			cmdBuffer->GetCommandBuffer()->ResourceBarrier(1, &resBarrier);
 		}
 		else
 		{

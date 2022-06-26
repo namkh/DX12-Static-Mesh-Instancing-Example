@@ -57,9 +57,11 @@ bool StructuredBuffer<DataType>::Initialize(UINT count, bool isConstantBuffer)
 		m_stride = (m_stride + 255) & ~255;
 	}
 
-	HRESULT res = gLogicalDevice->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(m_stride * count);
+	HRESULT res = gLogicalDevice->CreateCommittedResource(&heapProperties,
 														  D3D12_HEAP_FLAG_NONE,
-														  &CD3DX12_RESOURCE_DESC::Buffer(m_stride * count),
+														  &resDesc,
 														  D3D12_RESOURCE_STATE_COMMON,
 														  nullptr,
 														  IID_PPV_ARGS(&m_resourceBuffer));
@@ -69,10 +71,10 @@ bool StructuredBuffer<DataType>::Initialize(UINT count, bool isConstantBuffer)
 	}
 	m_resourceBuffer->SetName(L"sb resource buffer");
 	
-
-	res = gLogicalDevice->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+	heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	res = gLogicalDevice->CreateCommittedResource(&heapProperties,
 												  D3D12_HEAP_FLAG_NONE,
-												  &CD3DX12_RESOURCE_DESC::Buffer(m_stride * count),
+												  &resDesc,
 												  D3D12_RESOURCE_STATE_GENERIC_READ,
 												  nullptr,
 												  IID_PPV_ARGS(&m_stagingBuffer));
@@ -141,31 +143,15 @@ void StructuredBuffer<DataType>::UploadResource(CommandBufferBase* cmdBuffer, co
 template <typename DataType>
 void StructuredBuffer<DataType>::Begin(CommandBufferBase* cmdBuffer)
 {
-	cmdBuffer->GetCommandBuffer()->ResourceBarrier
-	(
-		1,
-		&CD3DX12_RESOURCE_BARRIER::Transition
-		(
-			m_resourceBuffer,
-			D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_COPY_DEST
-		)
-	);
+	CD3DX12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_resourceBuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+	cmdBuffer->GetCommandBuffer()->ResourceBarrier(1, &resBarrier);
 }
 
 template <typename DataType>
 void StructuredBuffer<DataType>::End(CommandBufferBase* cmdBuffer)
 {
-	cmdBuffer->GetCommandBuffer()->ResourceBarrier
-	(
-		1,
-		&CD3DX12_RESOURCE_BARRIER::Transition
-		(
-			m_resourceBuffer,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_COMMON
-		)
-	);
+	CD3DX12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_resourceBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+	cmdBuffer->GetCommandBuffer()->ResourceBarrier(1, &resBarrier);
 }
 
 class ReadOnlyDeviceBuffer

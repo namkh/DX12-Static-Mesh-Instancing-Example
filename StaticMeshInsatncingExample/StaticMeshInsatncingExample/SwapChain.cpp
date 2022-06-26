@@ -140,9 +140,10 @@ bool SwapChain::CreateDepthStencilView()
 	depthStencilClearValue.DepthStencil.Depth = 1;
 	depthStencilClearValue.DepthStencil.Stencil = 0;
 	
+	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 	HRESULT res = gLogicalDevice->CreateCommittedResource
 	(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&depthStencilResourceDesc,
 		D3D12_RESOURCE_STATE_COMMON,
@@ -164,13 +165,8 @@ bool SwapChain::CreateDepthStencilView()
 	SingleTimeCommandBuffer singleTimeCmdBuffer;
 	if (singleTimeCmdBuffer.Begin(nullptr))
 	{
-		singleTimeCmdBuffer.GetCommandBuffer()->ResourceBarrier
-		(
-			1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer,
-												  D3D12_RESOURCE_STATE_COMMON,
-												  D3D12_RESOURCE_STATE_DEPTH_WRITE)
-		);
+		CD3DX12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		singleTimeCmdBuffer.GetCommandBuffer()->ResourceBarrier(1, &resBarrier);
 		singleTimeCmdBuffer.End();
 	}
 

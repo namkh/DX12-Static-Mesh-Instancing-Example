@@ -68,7 +68,7 @@ protected:
 private:
 	static const uint32_t MESSAGE_BUFFER_SIZE = 4096;
 	static const std::string ERROR_TYPES[static_cast<uint32_t>(EReportType::REPORT_TYPE_END)];
-	char m_reportMessageBuffer[MESSAGE_BUFFER_SIZE];
+	char m_reportMessageBuffer[MESSAGE_BUFFER_SIZE] = { 0 };
 };
 
 #define REPORT(reportType, message) Reporter::Instance().Report(reportType, message, __LINE__, __FILE__, __FUNCTION__)

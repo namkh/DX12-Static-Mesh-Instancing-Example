@@ -378,20 +378,14 @@ bool RenderItem_HardwareInstancing::CreateCommandBuffer()
 					cmdBuf->RSSetViewports(1, &gDX12DeviceRes->GetViewport());
 					cmdBuf->RSSetScissorRects(1, &gDX12DeviceRes->GetScissorRect());
 
-					cmdBuf->ResourceBarrier
-					(
-						1,
-						&CD3DX12_RESOURCE_BARRIER::Transition
-						(
-							gDX12DeviceRes->GetSwapChain().GetBackBuffer(i),
-							D3D12_RESOURCE_STATE_PRESENT,
-							D3D12_RESOURCE_STATE_RENDER_TARGET
-						)
-					);
+					CD3DX12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(gDX12DeviceRes->GetSwapChain().GetBackBuffer(i), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+					cmdBuf->ResourceBarrier(1, &resBarrier);
 
-					cmdBuf->OMSetRenderTargets(1, &gDX12DeviceRes->GetSwapChain().GetRtvHandle(i), true, &gDX12DeviceRes->GetSwapChain().GetDsvHandle());
-					cmdBuf->ClearRenderTargetView(gDX12DeviceRes->GetSwapChain().GetRtvHandle(i), Colors::Black, 0, nullptr);
-					cmdBuf->ClearDepthStencilView(gDX12DeviceRes->GetSwapChain().GetDsvHandle(),
+					D3D12_CPU_DESCRIPTOR_HANDLE rtvDescHandle = gDX12DeviceRes->GetSwapChain().GetRtvHandle(i);
+					D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle = gDX12DeviceRes->GetSwapChain().GetDsvHandle();
+					cmdBuf->OMSetRenderTargets(1, &rtvDescHandle, true, &dsvDescHandle);
+					cmdBuf->ClearRenderTargetView(rtvDescHandle, Colors::Black, 0, nullptr);
+					cmdBuf->ClearDepthStencilView(dsvDescHandle,
 													D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 													1.0f, 0, 0, nullptr);
 
@@ -417,8 +411,10 @@ bool RenderItem_HardwareInstancing::CreateCommandBuffer()
 						SimpleMeshData* mesh = geometry->GetMesh(j);
 						if (mesh != nullptr)
 						{
-							cmdBuf->IASetVertexBuffers(0, 1, &mesh->GetVertexBuffer().GetVertexBufferView());
-							cmdBuf->IASetIndexBuffer(&mesh->GetIndexBuffer().GetIndexBufferView());
+							D3D12_VERTEX_BUFFER_VIEW vtxBufferView = mesh->GetVertexBuffer().GetVertexBufferView();
+							D3D12_INDEX_BUFFER_VIEW idxBufferView = mesh->GetIndexBuffer().GetIndexBufferView();
+							cmdBuf->IASetVertexBuffers(0, 1, &vtxBufferView);
+							cmdBuf->IASetIndexBuffer(&idxBufferView);
 							cmdBuf->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 							cmdBuf->DrawIndexedInstanced
@@ -432,16 +428,8 @@ bool RenderItem_HardwareInstancing::CreateCommandBuffer()
 						}
 					}
 
-					cmdBuf->ResourceBarrier
-					(
-						1,
-						&CD3DX12_RESOURCE_BARRIER::Transition
-						(
-							gDX12DeviceRes->GetSwapChain().GetBackBuffer(i),
-							D3D12_RESOURCE_STATE_RENDER_TARGET,
-							D3D12_RESOURCE_STATE_PRESENT
-						)
-					);
+					resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(gDX12DeviceRes->GetSwapChain().GetBackBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+					cmdBuf->ResourceBarrier(1, &resBarrier);
 
 					cmdBuffer->End();
 				}
@@ -607,20 +595,14 @@ bool RenderItem_MeshShaderInstancing::CreateCommandBuffer()
 						cmdBuf->RSSetViewports(1, &gDX12DeviceRes->GetViewport());
 						cmdBuf->RSSetScissorRects(1, &gDX12DeviceRes->GetScissorRect());
 
-						cmdBuf->ResourceBarrier
-						(
-							1,
-							&CD3DX12_RESOURCE_BARRIER::Transition
-							(
-								gDX12DeviceRes->GetSwapChain().GetBackBuffer(i),
-								D3D12_RESOURCE_STATE_PRESENT,
-								D3D12_RESOURCE_STATE_RENDER_TARGET
-							)
-						);
+						CD3DX12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(gDX12DeviceRes->GetSwapChain().GetBackBuffer(i), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+						cmdBuf->ResourceBarrier(1, &resBarrier);
 
-						cmdBuf->OMSetRenderTargets(1, &gDX12DeviceRes->GetSwapChain().GetRtvHandle(i), true, &gDX12DeviceRes->GetSwapChain().GetDsvHandle());
-						cmdBuf->ClearRenderTargetView(gDX12DeviceRes->GetSwapChain().GetRtvHandle(i), Colors::Black, 0, nullptr);
-						cmdBuf->ClearDepthStencilView(gDX12DeviceRes->GetSwapChain().GetDsvHandle(),
+						D3D12_CPU_DESCRIPTOR_HANDLE rtvDescHandle = gDX12DeviceRes->GetSwapChain().GetRtvHandle(i);
+						D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle = gDX12DeviceRes->GetSwapChain().GetDsvHandle();
+						cmdBuf->OMSetRenderTargets(1, &rtvDescHandle, true, &dsvDescHandle);
+						cmdBuf->ClearRenderTargetView(rtvDescHandle, Colors::Black, 0, nullptr);
+						cmdBuf->ClearDepthStencilView(dsvDescHandle,
 							D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 							1.0f, 0, 0, nullptr);
 
@@ -680,16 +662,8 @@ bool RenderItem_MeshShaderInstancing::CreateCommandBuffer()
 							}
 						}
 
-						cmdBuf->ResourceBarrier
-						(
-							1,
-							&CD3DX12_RESOURCE_BARRIER::Transition
-							(
-								gDX12DeviceRes->GetSwapChain().GetBackBuffer(i),
-								D3D12_RESOURCE_STATE_RENDER_TARGET,
-								D3D12_RESOURCE_STATE_PRESENT
-							)
-						);
+						resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(gDX12DeviceRes->GetSwapChain().GetBackBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+						cmdBuf->ResourceBarrier(1, &resBarrier);
 					}
 					cmdBuffer->End();
 				}
